@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Ứng dụng ký số tài liệu</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding: 20px;
+        }
+        .menu a {
+            margin-right: 10px;
+        }
+        .copy-btn {
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1 class="mb-4 text-center">🖋️ Ứng dụng ký số tài liệu</h1>
+
+    <div class="menu mb-4 text-center">
+        <a href="{{ url_for('index', section='sign') }}" class="btn btn-primary">Tạo khóa & Ký file</a>
+        <a href="{{ url_for('index', section='verify') }}" class="btn btn-secondary">Xác thực chữ ký</a>
+        <a href="{{ url_for('index', section='logs') }}" class="btn btn-success">Danh sách file đã ký</a>
+    </div>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-info">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% if request.args.get('section') == 'verify' %}
+        <h3>Xác thực chữ ký</h3>
+        <form method="POST" action="/verify" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label>File cần xác thực:</label>
+                <input type="file" name="file" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label>File chữ ký (.sig):</label>
+                <input type="file" name="signature" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label>Public Key:</label>
+                <textarea name="public_key" class="form-control" rows="5" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Xác thực</button>
+        </form>
+        {% if session.get('verify_result') %}
+            <div class="alert alert-{{ session.get('verify_status') }} mt-3">{{ session.get('verify_result') }}</div>
+        {% endif %}
+
+    {% elif request.args.get('section') == 'logs' %}
+        <h3>Danh sách file đã ký</h3>
+        <ul class="list-group">
+            {% for log in logs %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ log }}
+                    {% if '.sig' in log %}
+                        {% set file = log.split()[-1] %}
+                        <a href="/download_signature/{{ file }}" class="btn btn-sm btn-outline-primary">Tải xuống</a>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+
+    {% else %}
+        <h3>Tạo khóa và ký file</h3>
+        <a href="/generate_keys" class="btn btn-warning mb-3">Tạo cặp khóa mới</a>
+
+        {% if private_key and public_key %}
+            <div class="mb-3">
+                <label>Private Key:</label>
+                <textarea id="privateKey" class="form-control" rows="5" readonly>{{ private_key }}</textarea>
+                <button class="btn btn-outline-secondary mt-2" onclick="copyKey('privateKey')">Copy Private Key</button>
+            </div>
+            <div class="mb-3">
+                <label>Public Key:</label>
+                <textarea id="publicKey" class="form-control" rows="5" readonly>{{ public_key }}</textarea>
+                <button class="btn btn-outline-secondary mt-2" onclick="copyKey('publicKey')">Copy Public Key</button>
+            </div>
+        {% endif %}
+
+        <form method="POST" action="/sign" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label>Chọn file để ký:</label>
+                <input type="file" name="file" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label>Private Key:</label>
+                <textarea name="private_key" class="form-control" rows="5" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Ký file</button>
+        </form>
+
+        {% if session.get('sign_result') %}
+            <div class="alert alert-{{ session.get('sign_status') }} mt-3">{{ session.get('sign_result') }}</div>
+            {% if session.get('signed_file') %}
+                <a href="/download_signature/{{ session.get('signed_file') }}" class="btn btn-success mt-2">Tải file đã ký</a>
+            {% endif %}
+        {% endif %}
+    {% endif %}
+</div>
+
+<script>
+    function copyKey(id) {
+        var copyText = document.getElementById(id);
+        copyText.select();
+        document.execCommand("copy");
+        alert("Đã copy khóa!");
+    }
+</script>
+</body>
+</html>
